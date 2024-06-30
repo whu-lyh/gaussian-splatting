@@ -105,6 +105,23 @@ conda env create --file environment.yml --prefix <Drive>/<env_path>/gaussian_spl
 conda activate <Drive>/<env_path>/gaussian_splatting
 ```
 
+#### Docker+Ubuntu20.04
++ initialize a container by:
+```
+ docker run -itd --name=3dgs -e TZ="Asia/Shanghai"--shm-size=32g --gpus 'all,"capabilities=compute,utility,graphics"' --privileged=true -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=unix$DISPLAY -v /home/amazinghao/Data:/public -v /home/amazinghao:/workspace pytorch/pytorch:2.1.2-cuda12.1-cudnn8-devel /bin/bash
+```
+Otherwise, the SIBR_viewer could not show successfully
+```
+pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+apt-get update
+apt-get install -y libgl1 libglib2.0-0 libx11-6 git mesa-utils
+```
+
+[viewer bug](https://github.com/graphdeco-inria/gaussian-splatting/issues/267)
+[threejs viewer](https://projects.markkellogg.org/threejs/demo_gaussian_splats_3d.php)
+[embtree bug](https://elenacliu.github.io/post/gaussian_splatting/)
+[docker x11](https://stackoverflow.com/questions/46586013/glxgears-not-working-inside-of-docker)
+
 #### Modifications
 
 If you can afford the disk space, we recommend using our environment files for setting up a training environment identical to ours. If you want to make modifications, please note that major version changes might affect the results of our method. However, our (limited) experiments suggest that the codebase works just fine inside a more up-to-date environment (Python 3.8, PyTorch 2.0.0, CUDA 12). Make sure to create an environment where PyTorch and its CUDA runtime version match and the installed CUDA SDK has no major version difference with PyTorch's CUDA version.
@@ -340,10 +357,7 @@ The SIBR interface provides several methods of navigating the scene. By default,
 
 ### Running the Network Viewer
 
-
-
 https://github.com/graphdeco-inria/gaussian-splatting/assets/40643808/90a2e4d3-cf2e-4633-b35f-bfe284e28ff7
-
 
 
 After extracting or installing the viewers, you may run the compiled ```SIBR_remoteGaussian_app[_config]``` app in ```<SIBR install dir>/bin```, e.g.: 

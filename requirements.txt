@@ -1,0 +1,6 @@
+torchaudio
+torchvision
+plyfile
+tensorboard
+submodules/diff-gaussian-rasterization
+submodules/simple-knn
