@@ -117,10 +117,10 @@ apt-get update
 apt-get install -y libgl1 libglib2.0-0 libx11-6 git mesa-utils
 ```
 
-[viewer bug](https://github.com/graphdeco-inria/gaussian-splatting/issues/267)
-[threejs viewer](https://projects.markkellogg.org/threejs/demo_gaussian_splats_3d.php)
-[embtree bug](https://elenacliu.github.io/post/gaussian_splatting/)
-[docker x11](https://stackoverflow.com/questions/46586013/glxgears-not-working-inside-of-docker)
++ [viewer bug](https://github.com/graphdeco-inria/gaussian-splatting/issues/267)
++ [threejs viewer](https://projects.markkellogg.org/threejs/demo_gaussian_splats_3d.php)
++ [embtree bug](https://elenacliu.github.io/post/gaussian_splatting/)
++ [docker x11](https://stackoverflow.com/questions/46586013/glxgears-not-working-inside-of-docker)
 
 #### Modifications
 
@@ -386,11 +386,7 @@ The network viewer allows you to connect to a running training process on the sa
 ### Running the Real-Time Viewer
 
 
-
-
 https://github.com/graphdeco-inria/gaussian-splatting/assets/40643808/0940547f-1d82-4c2f-a616-44eabbf0f816
-
-
 
 
 After extracting or installing the viewers, you may run the compiled ```SIBR_gaussianViewer_app[_config]``` app in ```<SIBR install dir>/bin```, e.g.: 
@@ -439,7 +435,7 @@ Our COLMAP loaders expect the following dataset structure in the source path loc
 |   |---...
 |---sparse
     |---0
-        |---cameras.bin
+        |---cameras.bin # export from the colmap
         |---images.bin
         |---points3D.bin
 ```
@@ -496,6 +492,16 @@ python convert.py -s <location> --skip_matching [--resize] #If not resizing, Ima
 </details>
 <br>
 
+#### External colmap
+
++ if you generate the pose of images by external colmap, then the following code should be called
+```
+python convert.py --source_path /public/3D_gaussian_splatting_data/marriage --resize --skip_matching
+```
++ The whole reconstruction process could be done at the colmap, including the undistorted images, then the colmap could not be installed locally.
+
+
+
 ### OpenXR support
 
 OpenXR is supported in the branch gaussian_code_release_openxr 
@@ -534,3 +540,70 @@ pip install submodules\simple-knn
 - *Wait, but ```<insert feature>``` isn't optimized and could be much better?* There are several parts we didn't even have time to think about improving (yet). The performance you get with this prototype is probably a rather slow baseline for what is physically possible.
 
 - *Something is broken, how did this happen?* We tried hard to provide a solid and comprehensible basis to make use of the paper's method. We have refactored the code quite a bit, but we have limited capacity to test all possible usage scenarios. Thus, if part of the website, the code or the performance is lacking, please create an issue. If we find the time, we will do our best to address it.
+
+## code hack
+
++ the densification is not from the begining of the training instead of the preset iteration checkpoints, if the LiDAR point clouds are used, just comment this code line:
+
+```
+# Densification
+if iteration < opt.densify_until_iter:
+    # Keep track of max radii in image-space for pruning
+    gaussians.max_radii2D[visibility_filter] = torch.max(gaussians.max_radii2D[visibility_filter], radii[visibility_filter])
+    gaussians.add_densification_stats(viewspace_point_tensor, visibility_filter)
+
+    if iteration > opt.densify_from_iter and iteration % opt.densification_interval == 0:
+        size_threshold = 20 if iteration > opt.opacity_reset_interval else None
+        gaussians.densify_and_prune(opt.densify_grad_threshold, 0.005, scene.cameras_extent, size_threshold)
+    
+    if iteration % opt.opacity_reset_interval == 0 or (dataset.white_background and iteration == opt.densify_from_iter):
+        gaussians.reset_opacity()
+```
++ GaussianModel in the `gaussian_model.py` contains the learnable parameters especially the variables begin with "_"
+
++ how to split the train and test dataset?
+
+see the `dataset_reader.py` at scene `folder`
+
+```
+def readColmapSceneInfo(path, images, eval, llffhold=8):
+    try:
+        cameras_extrinsic_file = os.path.join(path, "sparse/0", "images.bin")
+        cameras_intrinsic_file = os.path.join(path, "sparse/0", "cameras.bin")
+        cam_extrinsics = read_extrinsics_binary(cameras_extrinsic_file)
+        cam_intrinsics = read_intrinsics_binary(cameras_intrinsic_file)
+    except:
+        cameras_extrinsic_file = os.path.join(path, "sparse/0", "images.txt")
+        cameras_intrinsic_file = os.path.join(path, "sparse/0", "cameras.txt")
+        cam_extrinsics = read_extrinsics_text(cameras_extrinsic_file)
+        cam_intrinsics = read_intrinsics_text(cameras_intrinsic_file)
+
+    reading_dir = "images" if images == None else images
+    cam_infos_unsorted = readColmapCameras(cam_extrinsics=cam_extrinsics, cam_intrinsics=cam_intrinsics, images_folder=os.path.join(path, reading_dir))
+    cam_infos = sorted(cam_infos_unsorted.copy(), key = lambda x : x.image_name)
+
+    if eval:
+        train_cam_infos = [c for idx, c in enumerate(cam_infos) if idx % llffhold != 0]
+        test_cam_infos = [c for idx, c in enumerate(cam_infos) if idx % llffhold == 0]
+    else:
+        train_cam_infos = cam_infos
+        test_cam_infos = []
+    ...
+```
+the whole images are loaded from the undistorted images and the train images are selected when the `idx % llffhold != 0` satisfied, that is the train/test images are fixed once the dataset is fixed
+
+the format of the bin file is defined at the colmap, see at [here](https://github.com/colmap/colmap/blob/4a2f2a516903b1a06ddbd692d495f3d3741ab571/scripts/python/read_write_model.py#L190).
+
++ how to assign a pose and render a single image and save it?
+ 
+`renderFunc` function provides the pipeline to render a image at given pose. More details at `gaussian_renderer/__init__.py` where the diff_gaussian_rasterization library show its value
+
+```
+def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, scaling_modifier = 1.0, override_color = None):
+    pass
+```
+then the returned image could be saved
+
+the `viewpoint_camera` is the pose of the image you want to rendered, during training, the gt pose of test image is obtained from the Colmap. 
+
++ 

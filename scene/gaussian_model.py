@@ -9,17 +9,21 @@
 # For inquiries contact  george.drettakis@inria.fr
 #
 
-import torch
-import numpy as np
-from utils.general_utils import inverse_sigmoid, get_expon_lr_func, build_rotation
-from torch import nn
 import os
-from utils.system_utils import mkdir_p
+
+import numpy as np
+import torch
 from plyfile import PlyData, PlyElement
-from utils.sh_utils import RGB2SH
 from simple_knn._C import distCUDA2
+from torch import nn
+
+from utils.general_utils import (build_rotation, build_scaling_rotation,
+                                 get_expon_lr_func, inverse_sigmoid,
+                                 strip_symmetric)
 from utils.graphics_utils import BasicPointCloud
-from utils.general_utils import strip_symmetric, build_scaling_rotation
+from utils.sh_utils import RGB2SH
+from utils.system_utils import mkdir_p
+
 
 class GaussianModel:
 
@@ -59,6 +63,8 @@ class GaussianModel:
         self.setup_functions()
 
     def capture(self):
+        """return the learnable parameters
+        """
         return (
             self.active_sh_degree,
             self._xyz,
@@ -124,13 +130,15 @@ class GaussianModel:
     def create_from_pcd(self, pcd : BasicPointCloud, spatial_lr_scale : float):
         self.spatial_lr_scale = spatial_lr_scale
         fused_point_cloud = torch.tensor(np.asarray(pcd.points)).float().cuda()
+        # initialize the sphere harmonics parameters based on the initial rgb
         fused_color = RGB2SH(torch.tensor(np.asarray(pcd.colors)).float().cuda())
+        # features are the learnable sphere harmonics parameters
         features = torch.zeros((fused_color.shape[0], 3, (self.max_sh_degree + 1) ** 2)).float().cuda()
         features[:, :3, 0 ] = fused_color
         features[:, 3:, 1:] = 0.0
 
         print("Number of points at initialisation : ", fused_point_cloud.shape[0])
-
+        # covariance matrix?
         dist2 = torch.clamp_min(distCUDA2(torch.from_numpy(np.asarray(pcd.points)).float().cuda()), 0.0000001)
         scales = torch.log(torch.sqrt(dist2))[...,None].repeat(1, 3)
         rots = torch.zeros((fused_point_cloud.shape[0], 4), device="cuda")
