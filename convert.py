@@ -65,17 +65,17 @@ if not args.skip_matching:
         logging.error(f"Mapper failed with code {exit_code}. Exiting.")
         exit(exit_code)
 
-# ### Image undistortion
-# ## We need to undistort our images into ideal pinhole intrinsics.
-# img_undist_cmd = (colmap_command + " image_undistorter \
-#     --image_path " + args.source_path + "/input \
-#     --input_path " + args.source_path + "/distorted/sparse/0 \
-#     --output_path " + args.source_path + "\
-#     --output_type COLMAP")
-# exit_code = os.system(img_undist_cmd)
-# if exit_code != 0:
-#     logging.error(f"Mapper failed with code {exit_code}. Exiting.")
-#     exit(exit_code)
+### Image undistortion
+## We need to undistort our images into ideal pinhole intrinsics.
+img_undist_cmd = (colmap_command + " image_undistorter \
+    --image_path " + args.source_path + "/input \
+    --input_path " + args.source_path + "/distorted/sparse/0 \
+    --output_path " + args.source_path + "\
+    --output_type COLMAP")
+exit_code = os.system(img_undist_cmd)
+if exit_code != 0:
+    logging.error(f"Mapper failed with code {exit_code}. Exiting.")
+    exit(exit_code)
 
 files = os.listdir(args.source_path + "/sparse")
 os.makedirs(args.source_path + "/sparse/0", exist_ok=True)
