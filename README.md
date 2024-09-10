@@ -122,6 +122,9 @@ apt-get install -y libgl1 libglib2.0-0 libx11-6 git mesa-utils
 + [embtree bug](https://elenacliu.github.io/post/gaussian_splatting/)
 + [docker x11](https://stackoverflow.com/questions/46586013/glxgears-not-working-inside-of-docker)
 
+#### colmap
+Following the instructions [here](https://colmap.github.io/install.html), the colmap docker image will be generated!
+
 #### Modifications
 
 If you can afford the disk space, we recommend using our environment files for setting up a training environment identical to ours. If you want to make modifications, please note that major version changes might affect the results of our method. However, our (limited) experiments suggest that the codebase works just fine inside a more up-to-date environment (Python 3.8, PyTorch 2.0.0, CUDA 12). Make sure to create an environment where PyTorch and its CUDA runtime version match and the installed CUDA SDK has no major version difference with PyTorch's CUDA version.
@@ -218,6 +221,8 @@ python train.py -s <path to COLMAP or NeRF Synthetic dataset>
 Note that similar to MipNeRF360, we target images at resolutions in the 1-1.6K pixel range. For convenience, arbitrary-size inputs can be passed and will be automatically resized if their width exceeds 1600 pixels. We recommend to keep this behavior, but you may force training to use your higher-resolution images by setting ```-r 1```.
 
 The MipNeRF360 scenes are hosted by the paper authors [here](https://jonbarron.info/mipnerf360/). You can find our SfM data sets for Tanks&Temples and Deep Blending [here](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/datasets/input/tandt_db.zip). If you do not provide an output model directory (```-m```), trained models are written to folders with randomized unique names inside the ```output``` directory. At this point, the trained models may be viewed with the real-time viewer (see further below).
+
+For the NeRF dataset, the initial point cloud is initialized as random point cloud, but the procedure to generate the pose of images is valuable.
 
 ### Evaluation
 By default, the trained models use all available images in the dataset. To train them while withholding a test set for evaluation, use the ```--eval``` flag. This way, you can render training/test sets and produce error metrics as follows:
@@ -606,4 +611,19 @@ then the returned image could be saved
 
 the `viewpoint_camera` is the pose of the image you want to rendered, during training, the gt pose of test image is obtained from the Colmap. 
 
-+ 
++ how to convert the RGB to SP and initialize it to a learnable tensor?
+
+the convert functions locate in the `sh_utils.py`, just coding the mathmatics formula as codes
+
+
+## Custom Reconstruction
+
++ python convert.py --skip_matching -s /public/3D_gaussian_splatting_data/wuhan_gs_test --resize
+
++ python read_write_model.py --input_model=/public/3D_gaussian_splatting_data/wuhan_gs_test/sparse/0/txt --input_format=".txt" --output_format=".bin" --output_model=/public/3D_gaussian_splatting_data/wuhan_gs_test/format_test_tmp
+
++ python train.py -s /public/3D_gaussian_splatting_data/wuhan_gs_test --eval
+
++ python render.py -m <path to trained model> # Generate renderings
+
++ python metrics.py -m <path to trained model> # Compute error metrics on renderings
