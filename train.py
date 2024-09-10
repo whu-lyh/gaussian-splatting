@@ -34,7 +34,7 @@ except ImportError:
 def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoint_iterations, checkpoint, debug_from):
     first_iter = 0
     tb_writer = prepare_output_and_logger(dataset)
-    gaussians = GaussianModel(dataset.sh_degree)
+    gaussians = GaussianModel(dataset.sh_degree) # dataset.sh_degree is the max_sh_degree
     scene = Scene(dataset, gaussians)
     # collect the parameters which are learnable
     gaussians.training_setup(opt)
@@ -92,6 +92,14 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
 
         # Loss
         gt_image = viewpoint_cam.original_image.cuda()
+
+        # if mask is available # lyh
+        mask = viewpoint_cam.mask
+        if mask is not None:
+            image = image.permute(1, 2, 0)
+            image[~mask] = torch.FloatTensor([0, 0, 0]).cuda()
+            image = image.permute(2, 0, 1)
+
         Ll1 = l1_loss(image, gt_image)
         loss = (1.0 - opt.lambda_dssim) * Ll1 + opt.lambda_dssim * (1.0 - ssim(image, gt_image))
         loss.backward()
@@ -205,10 +213,10 @@ if __name__ == "__main__":
     parser.add_argument('--port', type=int, default=6009)
     parser.add_argument('--debug_from', type=int, default=-1)
     parser.add_argument('--detect_anomaly', action='store_true', default=False)
-    parser.add_argument("--test_iterations", nargs="+", type=int, default=[7_000, 30_000])
-    parser.add_argument("--save_iterations", nargs="+", type=int, default=[7_000, 30_000])
+    parser.add_argument("--test_iterations", nargs="+", type=int, default=[7_000, 30_000, 50_000])
+    parser.add_argument("--save_iterations", nargs="+", type=int, default=[7_000, 30_000, 50_000])
     parser.add_argument("--quiet", action="store_true")
-    parser.add_argument("--checkpoint_iterations", nargs="+", type=int, default=[30_000])
+    parser.add_argument("--checkpoint_iterations", nargs="+", type=int, default=[50_000])
     parser.add_argument("--start_checkpoint", type=str, default = None)
     args = parser.parse_args(sys.argv[1:])
     args.save_iterations.append(args.iterations)

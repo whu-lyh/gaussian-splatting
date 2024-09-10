@@ -15,8 +15,8 @@ import numpy as np
 from utils.graphics_utils import getWorld2View2, getProjectionMatrix
 
 class Camera(nn.Module):
-    def __init__(self, colmap_id, R, T, FoVx, FoVy, image, gt_alpha_mask,
-                 image_name, uid,
+    def __init__(self, colmap_id, R, T, FoVx, FoVy, image, gt_alpha_mask, mask,
+                 image_name, uid, 
                  trans=np.array([0.0, 0.0, 0.0]), scale=1.0, data_device = "cuda"
                  ):
         super(Camera, self).__init__()
@@ -28,6 +28,7 @@ class Camera(nn.Module):
         self.FoVx = FoVx
         self.FoVy = FoVy
         self.image_name = image_name
+        self.mask = mask # lyh
 
         try:
             self.data_device = torch.device(data_device)
@@ -36,7 +37,11 @@ class Camera(nn.Module):
             print(f"[Warning] Custom device {data_device} failed, fallback to default cuda device" )
             self.data_device = torch.device("cuda")
 
-        self.original_image = image.clamp(0.0, 1.0).to(self.data_device)
+        self.original_image = image.clamp(0.0, 1.0).to(self.data_device) # tensor, size = C H W
+        if mask is not None: # lyh
+            self.original_image = self.original_image.permute(1, 2, 0)
+            self.original_image[~mask] = torch.FloatTensor([0, 0, 0]).to(self.data_device)
+            self.original_image = self.original_image.permute(2, 0, 1)
         self.image_width = self.original_image.shape[2]
         self.image_height = self.original_image.shape[1]
 

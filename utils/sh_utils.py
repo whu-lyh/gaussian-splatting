@@ -23,6 +23,8 @@
 
 import torch
 
+# following the info at https://en.wikipedia.org/wiki/Spherical_harmonics
+
 C0 = 0.28209479177387814
 C1 = 0.4886025119029199
 C2 = [
